@@ -1,0 +1,24 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    function signedIn() { return request.auth != null; }
+    function role() { return get(/databases/$(db)/documents/users/$(request.auth.uid)).data.role; }
+    function isAdmin() { return signedIn() && role() == 'admin'; }
+    function isStaff() { return signedIn() && (role() == 'admin' || role() == 'assistant'); }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      // chacun peut ajouter ses jetons de notification, seul l'admin change les rôles
+      allow update: if isAdmin() || (request.auth.uid == uid && request.resource.data.role == resource.data.role);
+      allow create, delete: if isAdmin();
+    }
+    match /{col}/{id} {
+      allow read, write: if isStaff() && col in ['groups','students','payments','prospects','attendance','contacts'];
+      allow delete: if isAdmin();
+    }
+    match /expenses/{id} { allow read, write: if isAdmin(); }
+    match /settings/{id} { allow read, write: if isAdmin(); }
+    // journal d'activité : la responsable écrit, seul l'admin lit
+    match /events/{id} { allow create: if isStaff(); allow read, delete: if isAdmin(); }
+  }
+}
