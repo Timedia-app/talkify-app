@@ -1,6 +1,7 @@
 // Toutes les 5 minutes (GitHub Actions) : envoie à l'administrateur une notification
 // pour chaque nouvelle action de la responsable (inscription, paiement, groupe, modification…).
 import admin from "firebase-admin";
+if (!process.env.FIREBASE_SERVICE_ACCOUNT) { console.log("Secret FIREBASE_SERVICE_ACCOUNT pas encore ajouté — rien à faire"); process.exit(0); }
 admin.initializeApp({ credential: admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)) });
 const db = admin.firestore();
 

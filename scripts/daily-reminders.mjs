@@ -1,6 +1,7 @@
 // Envoie chaque matin une notification au directeur et à l'assistante.
 // Lancé par GitHub Actions (.github/workflows/reminders.yml) — gratuit.
 import admin from "firebase-admin";
+if (!process.env.FIREBASE_SERVICE_ACCOUNT) { console.log("Secret FIREBASE_SERVICE_ACCOUNT pas encore ajouté — rien à faire"); process.exit(0); }
 import { dailySummary, todayISO, dayReport, toCollect, fmtDH } from "../js/logic.js";
 const MODE = process.env.MODE || (new Date().getUTCHours() >= 15 ? "evening" : "morning");
 
