@@ -2,7 +2,6 @@ node_modules/
 www/
 android/app/build/
 android/.gradle/
-android/app/google-services.json
 assets/
 *.png.bak
 android/app/src/main/assets/public/

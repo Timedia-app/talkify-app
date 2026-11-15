@@ -47,8 +47,14 @@ export async function initAuth(onUser) {
   await loadFirebase();
   fb.au.onAuthStateChanged(fb.auth, async u => {
     if (!u) { session.user = null; onUser(null); return; }
-    const snap = await fb.fs.getDoc(fb.fs.doc(fb.db, "users", u.uid));
-    const prof = snap.exists() ? snap.data() : { role: "assistant", name: u.email };
+    const ref = fb.fs.doc(fb.db, "users", u.uid);
+    let snap = await fb.fs.getDoc(ref);
+    if (!snap.exists()) {
+      // premier login : on crée la fiche avec le rôle de ce compte
+      await fb.fs.setDoc(ref, { role: u.email.startsWith("admin@") ? "admin" : "assistant", email: u.email, tokens: [] });
+      snap = await fb.fs.getDoc(ref);
+    }
+    const prof = snap.data();
     session.user = { uid: u.uid, role: prof.role || "assistant", name: ROLE_NAMES[prof.role || "assistant"] };
     subscribeAll();
     onUser(session.user);

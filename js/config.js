@@ -2,15 +2,15 @@
 // Tant que firebase.apiKey est vide, l'app tourne en MODE DÉMO (données gardées sur le téléphone).
 export const CONFIG = {
   firebase: {
-    apiKey: "",
-    authDomain: "",
-    projectId: "",
-    storageBucket: "",
-    messagingSenderId: "",
-    appId: ""
+    apiKey: "AIzaSyAbSzJx1sLxPhOiYzL4RFsoFafnUFuMJsE",
+    authDomain: "talkify-ba0bf.firebaseapp.com",
+    projectId: "talkify-ba0bf",
+    storageBucket: "talkify-ba0bf.firebasestorage.app",
+    messagingSenderId: "355102848680",
+    appId: "1:355102848680:web:3ebe2c187a4a6500f4749d"
   },
   // Clé publique Web Push (Firebase > Paramètres du projet > Cloud Messaging > Certificats Web Push)
-  vapidKey: "",
+  vapidKey: "BEopVBTT8j6XALGIN7vyWKcJuUDmVZY1unGVRxzapvmwSIRSvOxLuVvsWEmrrqd_-Xmw2_1cWHo6u6GXltWD3B8",
 
   centerName: "Talkify",
   respName: "Houda",    // responsable classe (propriétaire des « Ads de Houda »)
