@@ -31,6 +31,23 @@ if (NATIVE && P.App) P.App.addListener("backButton", () => {
   if (typeof state !== "undefined" && state.tab !== "home") { go("home"); return; }
   P.App.minimizeApp();
 });
+/* Geste « retour » sur iPhone et navigateur : chaque fenêtre ouverte ou onglet ≠ accueil ajoute une étape d'historique */
+let trapped = false;
+const somethingOpen = () => document.querySelector(".sheet-bg") || (typeof state !== "undefined" && state.tab !== "home");
+function arm() { if (!NATIVE && !trapped && somethingOpen()) { history.pushState({ talkify: 1 }, ""); trapped = true; } }
+window.addEventListener("popstate", () => {
+  trapped = false;
+  const sheets = document.querySelectorAll(".sheet-bg");
+  if (sheets.length) sheets[sheets.length - 1].remove();
+  else if (typeof state !== "undefined" && state.tab !== "home") go("home");
+  setTimeout(arm, 0);
+});
+// Partage d'un fichier sur iPhone (Enregistrer dans Fichiers, WhatsApp…) ; sinon téléchargement classique
+async function shareOrDownload(blob, name) {
+  const file = new File([blob], name, { type: blob.type });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) { try { await navigator.share({ files: [file], title: name }); return; } catch (e) { if (e.name === "AbortError") return; } }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+}
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const initials = n => (n || "?").trim().split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase() || "?";
 const isAdmin = () => session.user?.role === "admin";
@@ -133,7 +150,7 @@ function activitySheet() {
   const dot = $("#bellDot"); if (dot) dot.classList.add("hidden");
 }
 
-function go(tab) { state.tab = tab; window.scrollTo(0, 0); render(); }
+function go(tab) { state.tab = tab; window.scrollTo(0, 0); render(); arm(); }
 
 function render() {
   if (!$("#view")) return;
@@ -321,7 +338,7 @@ async function reportPDF(kind, R, label, per) {
   for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(120); doc.text(`Talkify · généré le ${new Date().toLocaleString("fr-FR")} · page ${i}/${n}`, 40, 820); }
   const fname = `talkify-rapport-${kind}-${R.from}.pdf`;
   if (NATIVE) await saveNativeFile(fname, doc.output("datauristring").split(",")[1], "application/pdf");
-  else doc.save(fname);
+  else await shareOrDownload(doc.output("blob"), fname);
 }
 
 /* ---------- Une case = une tâche, avec ce qu'il faut faire ---------- */
@@ -605,6 +622,7 @@ function sheet(html, onMount) {
   bg.onclick = e => { if (e.target === bg) bg.remove(); };
   document.body.appendChild(bg);
   const close = () => bg.remove();
+  arm();
   bg.querySelectorAll("[data-log]").forEach(a => a.addEventListener("click", () => { const [t, i, r] = a.dataset.log.split("|"); close(); setTimeout(() => contactLogSheet(t, i, r), 400); }));
   onMount && onMount(bg, close);
   return close;
@@ -1291,7 +1309,7 @@ function exportCSV() {
     ...data.students.map(s => [s.name, s.phone, groupName(s.groupId), s.source, s.startDate, s.monthly, s.nextDue, s.balance, s.status])];
   const csv = "﻿" + rows.map(r => r.map(c => `"${String(c ?? "").replace(/"/g, '""')}"`).join(";")).join("\n");
   if (NATIVE) return saveNativeFile(`talkify-eleves-${TODAY()}.csv`, btoa(unescape(encodeURIComponent(csv))), "text/csv");
-  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = `talkify-eleves-${TODAY()}.csv`; a.click();
+  shareOrDownload(new Blob([csv], { type: "text/csv" }), `talkify-eleves-${TODAY()}.csv`);
 }
 
 if (!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) && "serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});

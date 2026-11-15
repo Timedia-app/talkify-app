@@ -1,5 +1,5 @@
 // Talkify service worker : cache hors-ligne + notifications push (FCM)
-const CACHE = "talkify-v4";
+const CACHE = "talkify-v5";
 const ASSETS = ["./", "index.html", "css/app.css", "js/app.js", "js/store.js", "js/logic.js", "js/config.js", "js/seed.js", "js/icons.js", "js/vendor/jspdf.umd.min.js", "js/vendor/jspdf.plugin.autotable.min.js", "icons/logo-color.png",
   "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/logo-header.png", "icons/badge-96.png"];
 
