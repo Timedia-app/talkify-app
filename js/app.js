@@ -5,6 +5,32 @@ import { todayISO, addMonths, addDays, payStatus, isOut, dailySummary, waLink, f
 const charges = () => ({ ...DEFAULT_CHARGES, ...(data.settings.find(x => x.id === "charges") || {}) });
 
 const $ = s => document.querySelector(s);
+/* ---------- Application Android (Capacitor) ---------- */
+const NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+const P = NATIVE ? window.Capacitor.Plugins : {};
+// Enregistre un fichier sur le téléphone puis l'ouvre (lecteur PDF) ou propose de le partager
+async function saveNativeFile(name, base64, mime) {
+  const w = await P.Filesystem.writeFile({ path: name, data: base64, directory: "DOCUMENTS", recursive: true })
+    .catch(() => P.Filesystem.writeFile({ path: name, data: base64, directory: "CACHE" }));
+  try { await P.FileOpener.open({ filePath: w.uri, contentType: mime, openWithDefault: true }); }
+  catch (e) { await P.Share.share({ title: name, url: w.uri, dialogTitle: "Ouvrir / partager" }); }
+}
+async function nativeNotify(title, body) {
+  if (!NATIVE || !P.LocalNotifications) return;
+  try {
+    let perm = await P.LocalNotifications.checkPermissions();
+    if (perm.display !== "granted") perm = await P.LocalNotifications.requestPermissions();
+    if (perm.display !== "granted") return;
+    await P.LocalNotifications.schedule({ notifications: [{ id: Math.floor(Math.random() * 2e9), title, body }] });
+  } catch (e) {}
+}
+// Bouton / geste « retour » d'Android : ferme la fenêtre ouverte, sinon revient à l'accueil, sinon met l'app en arrière-plan
+if (NATIVE && P.App) P.App.addListener("backButton", () => {
+  const sheets = document.querySelectorAll(".sheet-bg");
+  if (sheets.length) { sheets[sheets.length - 1].remove(); return; }
+  if (typeof state !== "undefined" && state.tab !== "home") { go("home"); return; }
+  P.App.minimizeApp();
+});
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const initials = n => (n || "?").trim().split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase() || "?";
 const isAdmin = () => session.user?.role === "admin";
@@ -89,7 +115,8 @@ function watchEvents() {
     if (dot) { dot.textContent = unread; dot.classList.toggle("hidden", !unread); }
     // notification immédiate quand l'app est ouverte (en arrière-plan le serveur envoie le push)
     const fresh = evs.filter(e => e.at > lastNotified);
-    if (fresh.length && "Notification" in window && Notification.permission === "granted") {
+    if (fresh.length && NATIVE) fresh.forEach(e => nativeNotify("Talkify · " + e.by, e.text));
+    else if (fresh.length && "Notification" in window && Notification.permission === "granted") {
       navigator.serviceWorker?.getRegistration().then(reg => fresh.forEach(e => (reg ? reg.showNotification("Talkify · " + e.by, { body: e.text, icon: "icons/icon-192.png", tag: e.at }) : new Notification("Talkify", { body: e.text }))));
     }
     if (fresh.length) lastNotified = fresh.map(e => e.at).sort().pop();
@@ -292,7 +319,9 @@ async function reportPDF(kind, R, label, per) {
   sec("Pas encore fait (aujourd'hui)", ["À faire", "Personne"], [...R.notDone.late.map(s => ["Paiement en retard", s.name]), ...R.notDone.regs.map(s => ["Reste d'inscription", s.name]), ...R.notDone.pros.map(p => ["Relance prospect", p.name || p.phone])]);
   const n = doc.getNumberOfPages();
   for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(8); doc.setTextColor(120); doc.text(`Talkify · généré le ${new Date().toLocaleString("fr-FR")} · page ${i}/${n}`, 40, 820); }
-  doc.save(`talkify-rapport-${kind}-${R.from}.pdf`);
+  const fname = `talkify-rapport-${kind}-${R.from}.pdf`;
+  if (NATIVE) await saveNativeFile(fname, doc.output("datauristring").split(",")[1], "application/pdf");
+  else doc.save(fname);
 }
 
 /* ---------- Une case = une tâche, avec ce qu'il faut faire ---------- */
@@ -1261,6 +1290,7 @@ function exportCSV() {
   const rows = [["Nom", "Téléphone", "Groupe", "Source", "Début", "Mensualité", "Prochain paiement", "Reste", "Statut"],
     ...data.students.map(s => [s.name, s.phone, groupName(s.groupId), s.source, s.startDate, s.monthly, s.nextDue, s.balance, s.status])];
   const csv = "﻿" + rows.map(r => r.map(c => `"${String(c ?? "").replace(/"/g, '""')}"`).join(";")).join("\n");
+  if (NATIVE) return saveNativeFile(`talkify-eleves-${TODAY()}.csv`, btoa(unescape(encodeURIComponent(csv))), "text/csv");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = `talkify-eleves-${TODAY()}.csv`; a.click();
 }
 

@@ -182,7 +182,11 @@ export async function enablePush() {
   return token;
 }
 export async function testNotification() {
-  if (NATIVE) return alertNative();
+  if (NATIVE) {
+    const L = window.Capacitor.Plugins.LocalNotifications;
+    let perm = await L.checkPermissions(); if (perm.display !== "granted") perm = await L.requestPermissions();
+    return L.schedule({ notifications: [{ id: 1, title: "Talkify", body: "Les notifications marchent ✅" }] });
+  }
   const reg = await navigator.serviceWorker.getRegistration();
   const opts = { body: "Les notifications marchent ✅", icon: "icons/icon-192.png", badge: "icons/badge-96.png" };
   if (reg) return reg.showNotification("Talkify", opts);
